@@ -11,11 +11,10 @@ const LDES_FOLDER = process.env.LDES_FOLDER || 'ipdc-products';
 
 // INIT
 
-const lastPage = await determineLastPage();
-console.log(`Initializing import service with ${lastPage} as current last page`);
-await importFeed(lastPage);
+let currentPageNumber = await determineLastPage();
+console.log(`Initializing import service with ${currentPageNumber} as current last page`);
+await importFeed();
 
-// TODO keep current page number as state
 // TODO add mu script to trigger import of feed
 // TODO add mu script to reset (= delete files from folder)
 // TODO add frequent fetch for last page
@@ -28,6 +27,7 @@ app.get('/', function( req, res ) {
 } );
 
 app.use(errorHandler);
+
 
 // HELPERS
 
@@ -44,14 +44,14 @@ async function determineLastPage() {
   return Math.max(0, ...pageNumbers);
 }
 
-async function importFeed(startPage = 0) {
-  console.log(`Start importing IPDC LDES feed as of page ${startPage}`);
-  let pageNumber = startPage;
+async function importFeed() {
+  console.log(`Start importing IPDC LDES feed as of page ${currentPageNumber}`);
 
-  while (pageNumber >= 0) {
+  let isLastPage = false;
+  while (!isLastPage) {
     // fetch page from IPDC LDES feed
-    console.log(`Fetch page ${pageNumber} from IPDC LDES feed`);
-    const payload = await fetchPage(pageNumber);
+    console.log(`Fetch page ${currentPageNumber} from IPDC LDES feed`);
+    const payload = await fetchPage(currentPageNumber);
 
     // rewrite relation links to relative URLs
     rewriteRelationUrls(payload);
@@ -61,18 +61,20 @@ async function importFeed(startPage = 0) {
     ntriples = ntriples.replaceAll('http://replace-me-with-relative-path/', './');
 
     // write to file
-    const proxyPageNumber = ipdcToProxyPageNumber(pageNumber);
+    const proxyPageNumber = ipdcToProxyPageNumber(currentPageNumber);
     const outputFile = `/data/${LDES_FOLDER}/${proxyPageNumber}.ttl`;
     console.log(`Write page to ${outputFile}`);
     await fs.writeFile(outputFile, ntriples);
 
     // prepare for next page
     if (hasNextPage(payload)) {
-      pageNumber++;
+      currentPageNumber++;
     } else {
-      pageNumber = -1;
+      isLastPage = true;
     }
   }
+
+  console.log(`Reached the end of the LDES feed. Current last page is page ${currentPageNumber}.`);
 }
 
 async function fetchPage(page) {
