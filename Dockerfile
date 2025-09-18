@@ -1,4 +1,4 @@
 FROM semtech/mu-javascript-template:1.9.1
-LABEL maintainer="Erika Pauwels <erika.pauwels@gmail.com>"
+LABEL maintainer="redpencil.io <info@redpencil.io>"
 
 # see https://github.com/mu-semtech/mu-javascript-template for more info
