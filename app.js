@@ -9,6 +9,18 @@ const IPDC_API_KEY = process.env.IPDC_API_KEY;
 const LDES_FOLDER = process.env.LDES_FOLDER || 'ipdc-products';
 
 
+// INIT
+
+const lastPage = await determineLastPage();
+console.log(`Initializing import service with ${lastPage} as current last page`);
+await importFeed(lastPage);
+
+// TODO keep current page number as state
+// TODO add mu script to trigger import of feed
+// TODO add mu script to reset (= delete files from folder)
+// TODO add frequent fetch for last page
+
+
 // API
 
 app.get('/', function( req, res ) {
@@ -17,20 +29,23 @@ app.get('/', function( req, res ) {
 
 app.use(errorHandler);
 
-
-// INIT
-
-await importFeed();
-
-// TODO keep current page number as state
-// TODO initialize current page number based on files in folder
-// TODO add mu script to trigger import of feed
-// TODO add mu script to reset (= delete files from folder)
-// TODO add frequent fetch for last page
-
 // HELPERS
 
+async function determineLastPage() {
+  const files = await fs.readdir(`/data/${LDES_FOLDER}`);
+  const pageNumbers = files.map((file) => {
+    if (file.endsWith('.ttl')) {
+      return parseInt(file.replace('.ttl', ''));
+    } else {
+      return 0;
+    }
+  });
+
+  return Math.max(0, ...pageNumbers);
+}
+
 async function importFeed(startPage = 0) {
+  console.log(`Start importing IPDC LDES feed as of page ${startPage}`);
   let pageNumber = startPage;
 
   while (pageNumber >= 0) {
