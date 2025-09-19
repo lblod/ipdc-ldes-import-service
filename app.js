@@ -17,6 +17,8 @@ const POLLING_CRON_PATTERN = process.env.POLLING_CRON_PATTERN || '0 * * * * *';
 let isImporting = false;
 let currentPageNumber = await determineLastPage();
 console.log(`Initializing import service with ${currentPageNumber} as current last page`);
+await fs.mkdir(`/data/${LDES_FOLDER}`, { recursive: true });
+console.log(`Data will be imported in /data/${LDES_FOLDER}`);
 
 if (ENABLE_POLLING) {
   console.log(`Initialize polling with cron pattern '${POLLING_CRON_PATTERN}'`);
