@@ -7,7 +7,6 @@ import { CronJob } from 'cron';
 
 const IPDC_API_HOST = process.env.IPDC_API_HOST || 'https://ipdc.vlaanderen.be';
 const IPDC_API_KEY = process.env.IPDC_API_KEY;
-const LDES_FOLDER = process.env.LDES_FOLDER || 'ipdc-products';
 const ENABLE_POLLING = isTruthy(process.env.ENABLE_POLLING || 'true');
 const POLLING_CRON_PATTERN = process.env.POLLING_CRON_PATTERN || '0 * * * * *';
 
@@ -17,8 +16,7 @@ const POLLING_CRON_PATTERN = process.env.POLLING_CRON_PATTERN || '0 * * * * *';
 let isImporting = false;
 let currentPageNumber = await determineLastPage();
 console.log(`Initializing import service with ${currentPageNumber} as current last page`);
-await fs.mkdir(`/data/${LDES_FOLDER}`, { recursive: true });
-console.log(`Data will be imported in /data/${LDES_FOLDER}`);
+console.log(`Data will be imported in /data`);
 
 if (ENABLE_POLLING) {
   console.log(`Initialize polling with cron pattern '${POLLING_CRON_PATTERN}'`);
@@ -58,7 +56,7 @@ app.use(errorHandler);
 // HELPERS
 
 async function determineLastPage() {
-  const files = await fs.readdir(`/data/${LDES_FOLDER}`);
+  const files = await fs.readdir(`/data`);
   const pageNumbers = files.map((file) => {
     if (file.endsWith('.ttl')) {
       return parseInt(file.replace('.ttl', ''));
@@ -90,7 +88,7 @@ async function importFeed() {
 
       // write to file
       const proxyPageNumber = ipdcToProxyPageNumber(currentPageNumber);
-      const outputFile = `/data/${LDES_FOLDER}/${proxyPageNumber}.ttl`;
+      const outputFile = `/data/${proxyPageNumber}.ttl`;
       console.log(`Write page to ${outputFile}`);
       await fs.writeFile(outputFile, ntriples);
 
