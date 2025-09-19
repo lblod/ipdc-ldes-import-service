@@ -8,7 +8,7 @@ Add the service to your `docker-compose.yml`
 ``` yaml
 services:
   ipdc-ldes-import:
-    image: lblod/ipdc-ldes-import-service
+    image: lblod/ipdc-ldes-import-service:0.1.0
     environment:
       IPDC_API_KEY: "my-secret-api-key-for-IPDC"
     volumes:

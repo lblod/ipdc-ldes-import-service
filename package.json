@@ -1,6 +1,6 @@
 {
   "name": "ipdc-ldes-import-service",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Microservice to import pages from the IPDC LDES feed",
   "type": "module",
   "main": "app.js",
