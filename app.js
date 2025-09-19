@@ -1,30 +1,54 @@
 import { app, errorHandler } from 'mu';
 import * as fs from 'node:fs/promises';
 import jsonld from 'jsonld';
+import { CronJob } from 'cron';
 
 // CONFIG
 
 const IPDC_API_HOST = process.env.IPDC_API_HOST || 'https://ipdc.vlaanderen.be';
 const IPDC_API_KEY = process.env.IPDC_API_KEY;
 const LDES_FOLDER = process.env.LDES_FOLDER || 'ipdc-products';
+const ENABLE_POLLING = isTruthy(process.env.ENABLE_POLLING || 'true');
+const POLLING_CRON_PATTERN = process.env.POLLING_CRON_PATTERN || '0 * * * * *';
 
 
 // INIT
 
+let isImporting = false;
 let currentPageNumber = await determineLastPage();
 console.log(`Initializing import service with ${currentPageNumber} as current last page`);
-await importFeed();
+
+if (ENABLE_POLLING) {
+  console.log(`Initialize polling with cron pattern '${POLLING_CRON_PATTERN}'`);
+  new CronJob(
+    POLLING_CRON_PATTERN,
+    () => fetch('http://localhost/import', { method: 'POST' }),
+    null,
+    true
+  );
+} else {
+  console.log('Polling disabled. Import can only be triggered manually.');
+}
 
 // TODO add mu script to trigger import of feed
 // TODO add mu script to reset (= delete files from folder)
-// TODO add frequent fetch for last page
 
 
 // API
 
-app.get('/', function( req, res ) {
-  res.send('Hello mu-javascript-template');
-} );
+app.post('/import', function(req, res) {
+  if (isImporting) {
+    res.status(409).send({
+      errors: [{
+        title: 'Conflict',
+        detail: 'Service already busy importing data from the IPDC LDES feed'
+      }]
+    });
+  } else {
+    importFeed();
+    res.status(202).send();
+  }
+});
 
 app.use(errorHandler);
 
@@ -37,44 +61,51 @@ async function determineLastPage() {
     if (file.endsWith('.ttl')) {
       return parseInt(file.replace('.ttl', ''));
     } else {
-      return 0;
+      return 1;
     }
   });
 
-  return Math.max(0, ...pageNumbers);
+  return Math.max(1, ...pageNumbers) - 1;
 }
 
 async function importFeed() {
-  console.log(`Start importing IPDC LDES feed as of page ${currentPageNumber}`);
+  console.log(`Importing IPDC LDES feed starting from page ${currentPageNumber}`);
+  isImporting = true;
 
-  let isLastPage = false;
-  while (!isLastPage) {
-    // fetch page from IPDC LDES feed
-    console.log(`Fetch page ${currentPageNumber} from IPDC LDES feed`);
-    const payload = await fetchPage(currentPageNumber);
+  try {
+    let isLastPage = false;
+    while (!isLastPage) {
+      // fetch page from IPDC LDES feed
+      console.log(`Fetch page ${currentPageNumber} from IPDC LDES feed`);
+      const payload = await fetchPage(currentPageNumber);
 
-    // rewrite relation links to relative URLs
-    rewriteRelationUrls(payload);
-    payload['@context'].push({ '@base': 'http://replace-me-with-relative-path/' });
-    // convert to TTL
-    let ntriples = await jsonld.toRDF(payload, { format: 'application/n-quads' });
-    ntriples = ntriples.replaceAll('http://replace-me-with-relative-path/', './');
+      // rewrite relation links to relative URLs
+      rewriteRelationUrls(payload);
+      payload['@context'].push({ '@base': 'http://replace-me-with-relative-path/' });
+      // convert to TTL
+      let ntriples = await jsonld.toRDF(payload, { format: 'application/n-quads' });
+      ntriples = ntriples.replaceAll('http://replace-me-with-relative-path/', './');
 
-    // write to file
-    const proxyPageNumber = ipdcToProxyPageNumber(currentPageNumber);
-    const outputFile = `/data/${LDES_FOLDER}/${proxyPageNumber}.ttl`;
-    console.log(`Write page to ${outputFile}`);
-    await fs.writeFile(outputFile, ntriples);
+      // write to file
+      const proxyPageNumber = ipdcToProxyPageNumber(currentPageNumber);
+      const outputFile = `/data/${LDES_FOLDER}/${proxyPageNumber}.ttl`;
+      console.log(`Write page to ${outputFile}`);
+      await fs.writeFile(outputFile, ntriples);
 
-    // prepare for next page
-    if (hasNextPage(payload)) {
-      currentPageNumber++;
-    } else {
-      isLastPage = true;
+      // prepare for next page
+      if (hasNextPage(payload)) {
+        currentPageNumber++;
+      } else {
+        isLastPage = true;
+      }
     }
-  }
 
-  console.log(`Reached the end of the LDES feed. Current last page is page ${currentPageNumber}.`);
+    console.log(`Reached the end of the LDES feed. Current last page is page ${currentPageNumber}.`);
+  } catch (e) {
+    console.log(`An error occurred. Import of feed is interrupted. Current last page is page ${currentPageNumber}.`);
+  } finally {
+    isImporting = false;
+  }
 }
 
 async function fetchPage(page) {
@@ -114,4 +145,8 @@ function rewriteRelationUrls(payload) {
 
 function ipdcToProxyPageNumber(pageNumber) {
   return isNaN(pageNumber) ? 1 : pageNumber + 1;
+}
+
+function isTruthy(value) {
+  return value && ['true', '0', 'yes', 'on'].includes(value.toLowerCase());
 }
