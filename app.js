@@ -30,9 +30,6 @@ if (ENABLE_POLLING) {
   console.log('Polling disabled. Import can only be triggered manually.');
 }
 
-// TODO add mu script to trigger import of feed
-// TODO add mu script to reset (= delete files from folder)
-
 
 // API
 
