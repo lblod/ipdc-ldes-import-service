@@ -82,6 +82,7 @@ async function importFeed() {
       // convert to TTL
       let ntriples = await jsonld.toRDF(payload, { format: 'application/n-quads' });
       ntriples = ntriples.replaceAll('http://replace-me-with-relative-path/', './');
+      ntriples = rewriteInvalidLanguageTags(ntriples);
 
       // write to file
       const proxyPageNumber = ipdcToProxyPageNumber(currentPageNumber);
@@ -138,6 +139,14 @@ function rewriteRelationUrls(payload) {
       relation.node = `./${ipdcToProxyPageNumber(pageNumber)}`;
     }
   }
+}
+
+function rewriteInvalidLanguageTags(ntriples) {
+  // Feed contains invalid language tags containing '/' (e.g. @nl/je)
+  // Will be replaced with '-' (e.g. @nl-je)
+  ntriples = ntriples.replaceAll('@nl/je', '@nl-je');
+  ntriples = ntriples.replaceAll('@nl/u', '@nl-u');
+  return ntriples;
 }
 
 function ipdcToProxyPageNumber(pageNumber) {
