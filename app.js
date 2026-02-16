@@ -5,7 +5,7 @@ import { CronJob } from 'cron';
 
 // CONFIG
 
-const IPDC_API_HOST = process.env.IPDC_API_HOST || 'https://ipdc.vlaanderen.be';
+const IPDC_FEED_URL = process.env.IPDC_FEED_URL || 'https://ipdc.vlaanderen.be/doc/instantiesnapshot';
 const IPDC_API_KEY = process.env.IPDC_API_KEY;
 const ENABLE_POLLING = isTruthy(process.env.ENABLE_POLLING || 'true');
 const POLLING_CRON_PATTERN = process.env.POLLING_CRON_PATTERN || '0 * * * * *';
@@ -107,7 +107,7 @@ async function importFeed() {
 }
 
 async function fetchPage(page) {
-  const url = `${IPDC_API_HOST}/doc/instantiesnapshot?limit=25&pageNumber=${page}`;
+  const url = `${IPDC_FEED_URL}?limit=25&pageNumber=${page}`;
   const response = await fetch(url, {
     method: 'GET',
     headers: {
