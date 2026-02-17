@@ -1,6 +1,6 @@
 # ipdc-ldes-import-service
 
-Microservice to import pages from the IPDC LDES feed and prepare them for hosting as LDES feed via the [ldes-serve-feed-service](https://github.com/lblod/ldes-serve-feed-service).
+Microservice to import pages from an IPDC LDES feed and prepare them for hosting as LDES feed via the [ldes-serve-feed-service](https://github.com/lblod/ldes-serve-feed-service).
 
 ## Getting started
 Add the service to your `docker-compose.yml`
@@ -25,9 +25,12 @@ docker compose up -d
 ### Configuration
 The following environment variables can be configured on the service
 - **`IPDC_API_KEY`** (required): secret API key for the IPDC API
-- **`IPDC_API_HOST`** (optional, default: `https://ipdc.vlaanderen.be`): domain the IPDC API is hosted on.
+- **`IPDC_FEED_URL`** (optional, default: `https://ipdc.vlaanderen.be/doc/instantiesnapshot`): url the LDES FEED is hosted on.
 - **`ENABLE_POLLING`** (optional, default: `true`): enable continous polling of the IPDC LDES feed to check for updates. Any value of `true`, `1`, `on`, `yes` is considered truthy.
 - **`POLLING_CRON_PATTERN`** (optional, default: `0 * * * * *`): cron frequency to check for updates. Only relevant if `ENABLE_POLLING` is set.
+
+#### The following environment variables are no longer supported
+- **`IPDC_API_HOST`**: use `IPDC_API_KEY` instead
 
 ### API
 #### POST /import
