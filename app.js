@@ -166,6 +166,8 @@ function isTruthy(value) {
 }
 
 function applyFeedbackSnapshotFix(payload) {
+  payload['timestampPath'] = "https://www.w3.org/ns/prov#generatedAtTime";
+  
   const members = payload.member;
   // Fix member structure
   if (members && Array.isArray(members)) {
@@ -200,7 +202,7 @@ function applyFeedbackSnapshotFix(payload) {
               "@type": "@id"
             },
             "generatedAtTime": {
-              "@id": "https://schema.org/dateCreated",
+              "@id": "https://www.w3.org/ns/prov#generatedAtTime",
               "@type": "https://www.w3.org/2001/XMLSchema#dateTime"
             },
             "instantieId": {
