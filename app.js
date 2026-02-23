@@ -9,6 +9,7 @@ const IPDC_FEED_URL = process.env.IPDC_FEED_URL || 'https://ipdc.vlaanderen.be/d
 const IPDC_API_KEY = process.env.IPDC_API_KEY;
 const ENABLE_POLLING = isTruthy(process.env.ENABLE_POLLING || 'true');
 const POLLING_CRON_PATTERN = process.env.POLLING_CRON_PATTERN || '0 * * * * *';
+const APPLY_LDES_FEEDBACKSNAPSHOT_FEED_FIX = process.env.APPLY_LDES_FEEDBACKSNAPSHOT_FEED_FIX === 'true';
 
 
 // INIT
@@ -33,7 +34,7 @@ if (ENABLE_POLLING) {
 
 // API
 
-app.post('/import', function(req, res) {
+app.post('/import', function (req, res) {
   if (isImporting) {
     res.status(409).send({
       errors: [{
@@ -78,7 +79,15 @@ async function importFeed() {
 
       // rewrite relation links to relative URLs
       rewriteRelationUrls(payload);
+
+
+      // Apply feedbacksnapshot feed fix when requested
+      if (APPLY_LDES_FEEDBACKSNAPSHOT_FEED_FIX) {
+        applyFeedbackSnapshotFix(payload);
+      }
+
       payload['@context'].push({ '@base': 'http://replace-me-with-relative-path/' });
+      console.log('Payload context: ', payload['@context']);
       // convert to TTL
       let ntriples = await jsonld.toRDF(payload, { format: 'application/n-quads' });
       ntriples = ntriples.replaceAll('http://replace-me-with-relative-path/', './');
@@ -155,4 +164,84 @@ function ipdcToProxyPageNumber(pageNumber) {
 
 function isTruthy(value) {
   return value && ['true', '0', 'yes', 'on'].includes(value.toLowerCase());
+}
+
+function applyFeedbackSnapshotFix(payload) {
+  const members = payload.member;
+  // Fix member structure
+  if (members && Array.isArray(members)) {
+
+    for (const member of members) {
+      if (!member['feedback']) {
+        continue;
+      }
+      if (!member['@type'] === 'FeedbackSnapshot') {
+        continue;
+      }
+      const feedbackObject = member['feedback'];
+      delete feedbackObject['@id']
+      delete feedbackObject['@type'];
+
+      delete member['id'];
+      delete member['feedback']
+      Object.assign(member, feedbackObject);
+    }
+  }
+
+  // Add needed structure details to `@context`
+  const contexts = payload['@context'];
+  if (contexts && Array.isArray(contexts)) {
+    contexts.push({
+      '@context': {
+        'FeedbackSnapshot': {
+          '@id': 'https://schema.org/Conversation',
+          '@context': {
+            "isVersionOf": {
+              "@id": "https://purl.org/dc/terms/isVersionOf",
+              "@type": "@id"
+            },
+            "generatedAtTime": {
+              "@id": "https://schema.org/dateCreated",
+              "@type": "https://www.w3.org/2001/XMLSchema#dateTime"
+            },
+            "instantieId": {
+              "@id": "https://schema.org/about",
+              "@type": "@id",
+              "@context": {
+                "@base": "https://ipdc.tni-vlaanderen.be/id/instantie/"
+              }
+            },
+            "conceptId": {
+              "@id": "https://schema.org/about",
+              "@type": "@id",
+              "@context": {
+                "@base": "https://ipdc.tni-vlaanderen.be/id/concept/"
+              }
+            },
+            "productnummer": {
+              "@id": "https://schema.org/productID",
+              "@type": "https://www.w3.org/2001/XMLSchema#string"
+            },
+            "status": {
+              "@id": "https://www.w3.org/ns/adms#status",
+              "@type": "@vocab",
+              "@context": {
+                "@vocab": "https://ipdc.vlaanderen.be/ns/FeedbackStatus#"
+              }
+            },
+            "createdAt": {
+              "@id": "https://schema.org/dateCreated",
+              "@type": "https://www.w3.org/2001/XMLSchema#dateTime"
+            },
+            "vraag": {
+              "@id": "https://schema.org/question"
+            },
+            "antwoord": {
+              "@id": "https://schema.org/suggestedAnswer"
+            }
+          }
+        }
+      }
+    })
+  }
 }
