@@ -87,7 +87,6 @@ async function importFeed() {
       }
 
       payload['@context'].push({ '@base': 'http://replace-me-with-relative-path/' });
-      console.log('Payload context: ', payload['@context']);
       // convert to TTL
       let ntriples = await jsonld.toRDF(payload, { format: 'application/n-quads' });
       ntriples = ntriples.replaceAll('http://replace-me-with-relative-path/', './');
